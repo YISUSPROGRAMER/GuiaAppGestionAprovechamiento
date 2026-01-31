@@ -18,8 +18,8 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/guia-gestion-aprovechamiento/',
-        start_url: '/guia-gestion-aprovechamiento/',
+        scope: '/GuiaAppGestionAprovechamiento/',
+        start_url: '/GuiaAppGestionAprovechamiento/',
         icons: [
           {
             src: 'pwa-192x192.png',
