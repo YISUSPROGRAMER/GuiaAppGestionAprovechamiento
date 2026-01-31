@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Wifi, WifiOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Wifi, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSettings, saveSettings, checkConnection } from '../services/api';
 import { toast } from 'react-hot-toast';

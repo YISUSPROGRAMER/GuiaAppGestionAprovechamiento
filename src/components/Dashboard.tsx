@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
-import type { DashboardMetricas } from '../types';
 import { SyncService } from '../services/sync';
 import { RefreshCw, Truck, Archive, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
