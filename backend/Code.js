@@ -236,6 +236,8 @@ function syncData(ss, payload) {
 }
 
 function getData(ss) {
+    const materiales = getMaterialesCatalogo(ss);
+
     // 1. Fetch Entidades
     const entSheet = ss.getSheetByName("Entidades");
     const entRows = entSheet ? entSheet.getDataRange().getValues().slice(1) : [];
@@ -290,6 +292,24 @@ function getData(ss) {
         entidades,
         recolecciones,
         detalles,
-        metrics
+        metrics,
+        materiales
     };
+}
+
+function getMaterialesCatalogo(ss) {
+    const catalogSheet = ss.getSheetByName("CatalogoMateriales");
+    if (!catalogSheet) {
+        return ["PET", "Cartón", "Plástico", "Papel", "Vidrio", "Orgánico", "Chatarra", "Archivo"];
+    }
+
+    const rows = catalogSheet.getDataRange().getValues();
+    if (!rows || rows.length < 2) {
+        return [];
+    }
+
+    return rows
+        .slice(1)
+        .map(row => String(row[0] || "").trim())
+        .filter(Boolean);
 }

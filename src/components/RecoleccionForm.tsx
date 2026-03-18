@@ -3,9 +3,12 @@ import { db, generateNextId } from '../db/db';
 import { SyncService } from '../services/sync';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { TipoMaterial } from '../types';
+import { getStoredMateriales } from '../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+
+const DEFAULT_MATERIALES = Object.values(TipoMaterial);
 
 export const RecoleccionForm: React.FC = () => {
     const navigate = useNavigate();
@@ -13,6 +16,7 @@ export const RecoleccionForm: React.FC = () => {
     const isEditing = !!id;
 
     const entidades = useLiveQuery(() => db.entidades.filter(e => e.deleted !== 1).toArray());
+    const [materialesDisponibles, setMaterialesDisponibles] = useState<string[]>(DEFAULT_MATERIALES);
 
     // Form State
     const [idEntidad, setIdEntidad] = useState("");
@@ -20,8 +24,15 @@ export const RecoleccionForm: React.FC = () => {
 
     // Dynamic Materials List - Now tracks ID if editing
     const [detalles, setDetalles] = useState<Array<{ id?: string, material: TipoMaterial, peso: string }>>([
-        { material: TipoMaterial.PET, peso: '' }
+        { material: DEFAULT_MATERIALES[0], peso: '' }
     ]);
+
+    useEffect(() => {
+        const materialesGuardados = getStoredMateriales();
+        if (materialesGuardados && materialesGuardados.length > 0) {
+            setMaterialesDisponibles(materialesGuardados);
+        }
+    }, []);
 
     // Load data if editing
     useEffect(() => {
@@ -47,7 +58,7 @@ export const RecoleccionForm: React.FC = () => {
     }, [id, isEditing]);
 
     const handleAddMaterial = () => {
-        setDetalles([...detalles, { material: TipoMaterial.PET, peso: '' }]);
+        setDetalles([...detalles, { material: materialesDisponibles[0] || DEFAULT_MATERIALES[0], peso: '' }]);
     };
 
     const handleRemoveMaterial = (index: number) => {
@@ -229,7 +240,7 @@ export const RecoleccionForm: React.FC = () => {
                                     value={det.material}
                                     onChange={e => updateDetalle(index, 'material', e.target.value)}
                                 >
-                                    {Object.values(TipoMaterial).map(t => (
+                                    {materialesDisponibles.map(t => (
                                         <option key={t} value={t}>{t}</option>
                                     ))}
                                 </select>

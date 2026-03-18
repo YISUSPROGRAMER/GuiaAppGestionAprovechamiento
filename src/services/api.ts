@@ -1,11 +1,21 @@
 import type { SyncPayload } from "../types";
 
 const API_CONFIG_KEY = 'guia_app_api_config';
+const MATERIALES_CONFIG_KEY = 'guia_app_materiales';
 
 export interface AppSettings {
     apiUrl: string;
     apiToken: string;
 }
+
+export const getStoredMateriales = (): string[] | null => {
+    const stored = localStorage.getItem(MATERIALES_CONFIG_KEY);
+    return stored ? JSON.parse(stored) : null;
+};
+
+export const saveStoredMateriales = (materiales: string[]) => {
+    localStorage.setItem(MATERIALES_CONFIG_KEY, JSON.stringify(materiales));
+};
 
 export const getSettings = (): AppSettings | null => {
     const stored = localStorage.getItem(API_CONFIG_KEY);

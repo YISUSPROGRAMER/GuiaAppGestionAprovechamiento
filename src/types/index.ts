@@ -19,7 +19,7 @@ export const TipoMaterial = {
     ARCHIVO: "Archivo"
 } as const;
 
-export type TipoMaterial = typeof TipoMaterial[keyof typeof TipoMaterial];
+export type TipoMaterial = string;
 
 export interface Entidad {
     id: string; // ENT001

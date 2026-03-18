@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { SyncService } from '../services/sync';
 import { RefreshCw, Download, Truck, Archive, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
+import { toast } from 'react-hot-toast';
 
 export const Dashboard: React.FC = () => {
+    const [activeAction, setActiveAction] = useState<'sync' | 'download' | null>(null);
+
     // Reactively calculate metrics from local DB + Synced Meta
     const metrics = useLiveQuery(async () => {
         // 1. Get Synced Meta (or default)
@@ -38,16 +41,37 @@ export const Dashboard: React.FC = () => {
 
     // No legacy useEffect needed
     const loading = !metrics;
+    const isBusy = activeAction !== null;
 
     const handleSync = async () => {
-        // Trigger Sync
-        await SyncService.syncUp();
-        await SyncService.syncDown();
-        // The dashboard will auto-update via useLiveQuery observing DB changes and LocalStorage
+        if (isBusy) return;
+
+        setActiveAction('sync');
+        try {
+            await SyncService.syncUp();
+            await SyncService.syncDown();
+            toast.success("Sincronización finalizada");
+        } catch (error) {
+            console.error("[Dashboard] Error en sincronización manual:", error);
+            toast.error("No se pudo completar la sincronización");
+        } finally {
+            setActiveAction(null);
+        }
     };
 
     const handleDownload = async () => {
-        await SyncService.syncDown();
+        if (isBusy) return;
+
+        setActiveAction('download');
+        try {
+            await SyncService.syncDown();
+            toast.success("Descarga finalizada");
+        } catch (error) {
+            console.error("[Dashboard] Error en descarga manual:", error);
+            toast.error("No se pudo completar la descarga");
+        } finally {
+            setActiveAction(null);
+        }
     };
 
     if (!metrics) return <div className="p-4">Cargando métricas...</div>;
@@ -65,20 +89,20 @@ export const Dashboard: React.FC = () => {
                 <div className="flex bg-white rounded-full shadow-sm p-1">
                     <button
                         onClick={handleDownload}
-                        disabled={loading}
-                        className={`p-2 rounded-full text-emerald-600 hover:bg-emerald-50 transition-colors ${loading ? "opacity-50" : ""}`}
+                        disabled={loading || isBusy}
+                        className={`p-2 rounded-full text-emerald-600 hover:bg-emerald-50 transition-colors ${loading || isBusy ? "opacity-50" : ""}`}
                         title="Descargar datos del servidor"
                     >
-                        <Download size={24} />
+                        <Download size={24} className={activeAction === 'download' ? "animate-spin" : ""} />
                     </button>
                     <div className="w-px bg-gray-100 mx-1"></div>
                     <button
                         onClick={handleSync}
-                        disabled={loading}
-                        className={`p-2 rounded-full text-blue-600 hover:bg-blue-50 transition-colors ${loading ? "opacity-50" : ""}`}
+                        disabled={loading || isBusy}
+                        className={`p-2 rounded-full text-blue-600 hover:bg-blue-50 transition-colors ${loading || isBusy ? "opacity-50" : ""}`}
                         title="Sincronizar Datos"
                     >
-                        <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
+                        <RefreshCw size={24} className={activeAction === 'sync' ? "animate-spin" : ""} />
                     </button>
                     <div className="w-px bg-gray-100 mx-1"></div>
                     <Link to="/settings" className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors">

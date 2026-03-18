@@ -1,5 +1,5 @@
 import { db } from "../db/db";
-import { ApiService } from "./api";
+import { ApiService, saveStoredMateriales } from "./api";
 import { toast } from "react-hot-toast";
 
 export const SyncService = {
@@ -168,6 +168,14 @@ export const SyncService = {
                 if (data.metrics) {
                     localStorage.setItem('meta_trimestral', data.metrics.metaTrimestral.toString());
                     console.log(`[SyncDown] Meta actualizada: ${data.metrics.metaTrimestral}`);
+                }
+
+                if (Array.isArray(data.materiales)) {
+                    const materialesLimpios = data.materiales
+                        .map((material: string) => material.trim())
+                        .filter(Boolean);
+                    saveStoredMateriales(materialesLimpios);
+                    console.log(`[SyncDown] Materiales actualizados: ${materialesLimpios.length}`);
                 }
 
                 toast.success("Sincronización completa", { id: toastId });
