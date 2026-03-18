@@ -7,10 +7,24 @@ import { getStoredMateriales } from '../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import clsx from 'clsx';
 
 const DEFAULT_MATERIALES = Object.values(TipoMaterial);
 
 const formatPesoInput = (value: number) => value.toString().replace('.', ',');
+
+const normalizePesoInput = (value: string) => {
+    const sanitized = value
+        .replace(/\./g, ',')
+        .replace(/[^\d,]/g, '');
+
+    const firstCommaIndex = sanitized.indexOf(',');
+    if (firstCommaIndex === -1) return sanitized;
+
+    const integerPart = sanitized.slice(0, firstCommaIndex);
+    const decimalPart = sanitized.slice(firstCommaIndex + 1).replace(/,/g, '');
+    return `${integerPart},${decimalPart}`;
+};
 
 const parsePesoInput = (value: string) => {
     const normalized = value.trim().replace(',', '.');
@@ -78,7 +92,7 @@ export const RecoleccionForm: React.FC = () => {
         if (field === 'material') {
             newDetalles[index].material = value as TipoMaterial;
         } else {
-            newDetalles[index].peso = value;
+            newDetalles[index].peso = normalizePesoInput(value);
         }
         setDetalles(newDetalles);
     };
@@ -268,12 +282,27 @@ export const RecoleccionForm: React.FC = () => {
                                         inputMode="decimal"
                                         placeholder="23,45"
                                         required
-                                        className="flex-1 p-2 border border-gray-200 rounded-lg text-sm"
+                                        className={clsx(
+                                            "flex-1 p-2 border rounded-lg text-sm outline-none",
+                                            det.peso === '' || (!Number.isNaN(parsePesoInput(det.peso)) && parsePesoInput(det.peso) > 0)
+                                                ? "border-gray-200 focus:ring-2 focus:ring-blue-500"
+                                                : "border-red-300 focus:ring-2 focus:ring-red-200"
+                                        )}
                                         value={det.peso}
                                         onChange={e => updateDetalle(index, 'peso', e.target.value)}
                                     />
                                     <span className="text-sm text-gray-500">Kg</span>
                                 </div>
+                                <p className={clsx(
+                                    "text-xs",
+                                    det.peso === '' || (!Number.isNaN(parsePesoInput(det.peso)) && parsePesoInput(det.peso) > 0)
+                                        ? "text-gray-400"
+                                        : "text-red-500"
+                                )}>
+                                    {det.peso === '' || (!Number.isNaN(parsePesoInput(det.peso)) && parsePesoInput(det.peso) > 0)
+                                        ? "Usa coma decimal. Si escribes punto, la app lo cambia a coma automáticamente."
+                                        : "Formato inválido. Usa un valor como 23,45 kg."}
+                                </p>
                             </div>
                             {detalles.length > 1 && (
                                 <button
