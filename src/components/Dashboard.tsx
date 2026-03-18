@@ -2,42 +2,69 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { SyncService } from '../services/sync';
-import { RefreshCw, Download, Truck, Archive, Settings } from 'lucide-react';
+import { RefreshCw, Download, ChevronLeft, ChevronRight, Truck, Archive, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
 
+const MONTHLY_GOAL_KG = 5000;
+
+const getMonthKey = (dateValue: string) => {
+    if (!dateValue) return '';
+    return dateValue.slice(0, 7);
+};
+
+const formatMonthLabel = (monthKey: string) => {
+    const [year, month] = monthKey.split('-').map(Number);
+    if (!year || !month) return monthKey;
+
+    return new Intl.DateTimeFormat('es-CO', {
+        month: 'long',
+        year: 'numeric'
+    }).format(new Date(year, month - 1, 1));
+};
+
 export const Dashboard: React.FC = () => {
     const [activeAction, setActiveAction] = useState<'sync' | 'download' | null>(null);
+    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
-    // Reactively calculate metrics from local DB + Synced Meta
     const metrics = useLiveQuery(async () => {
-        // 1. Get Synced Meta (or default)
-        const storedMeta = localStorage.getItem('meta_trimestral');
-        const meta = storedMeta ? Number(storedMeta) : 6000;
-
-        // 2. Count Active Items (Exclude deleted)
         const activeRecolecciones = await db.recolecciones.filter(r => r.deleted !== 1).toArray();
-        const activeRecIds = new Set(activeRecolecciones.map(r => r.id));
-        const recoleccionesCount = activeRecolecciones.length;
-        const entidadesCount = await db.entidades.filter(e => e.deleted !== 1).count();
-
-        // 3. Calculate Total Weight directly from Active Details belonging to Active Recolecciones
         const activeDetalles = await db.detalles.filter(d => d.deleted !== 1).toArray();
-        // Strict Check: Detail must not be deleted AND its parent Recoleccion must exist and not be deleted
-        const validDetalles = activeDetalles.filter(d => activeRecIds.has(d.idRecoleccion));
+        const availableMonths = Array.from(new Set(
+            activeRecolecciones
+                .map(r => getMonthKey(r.fechaRecoleccion))
+                .filter(Boolean)
+        )).sort().reverse();
+
+        const monthToUse = availableMonths.includes(selectedMonth)
+            ? selectedMonth
+            : availableMonths[0] || selectedMonth;
+
+        const monthRecolecciones = activeRecolecciones.filter(
+            r => getMonthKey(r.fechaRecoleccion) === monthToUse
+        );
+        const monthRecIds = new Set(monthRecolecciones.map(r => r.id));
+        const recoleccionesCount = monthRecolecciones.length;
+        const entidadesCount = new Set(monthRecolecciones.map(r => r.idEntidad)).size;
+        const validDetalles = activeDetalles.filter(d => monthRecIds.has(d.idRecoleccion));
         const totalKg = validDetalles.reduce((acc, d) => acc + d.pesoKg, 0);
+        const faltante = Math.max(MONTHLY_GOAL_KG - totalKg, 0);
+        const excedente = Math.max(totalKg - MONTHLY_GOAL_KG, 0);
 
         return {
-            metaTrimestral: meta,
+            metaMensual: MONTHLY_GOAL_KG,
             totalRecolectado: totalKg,
-            percentCumplimiento: totalKg / meta,
+            percentCumplimiento: totalKg / MONTHLY_GOAL_KG,
             totalEntidades: entidadesCount,
             totalRecolecciones: recoleccionesCount,
             promedioKgPorRecoleccion: recoleccionesCount > 0 ? totalKg / recoleccionesCount : 0,
-            faltante: meta - totalKg
+            faltante,
+            excedente,
+            selectedMonth: monthToUse,
+            availableMonths
         };
-    }, []);
+    }, [selectedMonth]);
 
     // No legacy useEffect needed
     const loading = !metrics;
@@ -78,6 +105,9 @@ export const Dashboard: React.FC = () => {
 
     const progress = Math.min(metrics.percentCumplimiento * 100, 100);
     const colorClass = progress < 50 ? 'bg-red-500' : progress < 85 ? 'bg-yellow-500' : 'bg-green-500';
+    const monthIndex = metrics.availableMonths.indexOf(metrics.selectedMonth);
+    const canGoNewer = monthIndex > 0;
+    const canGoOlder = monthIndex !== -1 && monthIndex < metrics.availableMonths.length - 1;
 
     return (
         <div className="p-4 space-y-6">
@@ -111,11 +141,73 @@ export const Dashboard: React.FC = () => {
                 </div>
             </header>
 
-            {/* Main Goal Card */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!canGoNewer) return;
+                            setSelectedMonth(metrics.availableMonths[monthIndex - 1]);
+                        }}
+                        disabled={!canGoNewer}
+                        className={clsx(
+                            "p-2 rounded-full border transition-colors",
+                            canGoNewer ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                        )}
+                        title="Mes más reciente"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+
+                    <div className="flex-1">
+                        <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Periodo</p>
+                        <select
+                            value={metrics.selectedMonth}
+                            onChange={e => setSelectedMonth(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {metrics.availableMonths.length > 0 ? (
+                                metrics.availableMonths.map(month => (
+                                    <option key={month} value={month}>
+                                        {formatMonthLabel(month)}
+                                    </option>
+                                ))
+                            ) : (
+                                <option value={metrics.selectedMonth}>
+                                    {formatMonthLabel(metrics.selectedMonth)}
+                                </option>
+                            )}
+                        </select>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!canGoOlder) return;
+                            setSelectedMonth(metrics.availableMonths[monthIndex + 1]);
+                        }}
+                        disabled={!canGoOlder}
+                        className={clsx(
+                            "p-2 rounded-full border transition-colors",
+                            canGoOlder ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                        )}
+                        title="Mes anterior"
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                </div>
+
+                <p className="text-sm text-gray-500">
+                    {metrics.availableMonths.length > 0
+                        ? `Mostrando información de ${formatMonthLabel(metrics.selectedMonth)}`
+                        : "Aún no hay meses trabajados registrados. Puedes empezar con el mes actual."}
+                </p>
+            </div>
+
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex justify-between items-end mb-4">
                     <div>
-                        <p className="text-sm text-gray-500 font-medium mb-1">Total Recolectado</p>
+                        <p className="text-sm text-gray-500 font-medium mb-1">Total Recolectado del Mes</p>
                         <h2 className="text-4xl font-extrabold text-gray-900">
                             {metrics.totalRecolectado.toLocaleString('es-CO', { maximumFractionDigits: 1 })} <span className="text-lg text-gray-400 font-normal">Kg</span>
                         </h2>
@@ -137,21 +229,44 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-xs text-gray-400">
                     <span>0 Kg</span>
-                    <span>Meta: {metrics.metaTrimestral.toLocaleString()} Kg</span>
+                    <span>Meta mensual: {metrics.metaMensual.toLocaleString('es-CO')} Kg</span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-gray-50 px-4 py-3">
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Faltante</p>
+                        <p className="text-lg font-bold text-gray-900">
+                            {metrics.faltante.toLocaleString('es-CO', { maximumFractionDigits: 1 })} Kg
+                        </p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                        <p className="text-xs uppercase tracking-wide text-emerald-600">Excedente</p>
+                        <p className="text-lg font-bold text-emerald-700">
+                            {metrics.excedente.toLocaleString('es-CO', { maximumFractionDigits: 1 })} Kg
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                     <Archive className="text-purple-500 mb-2" size={24} />
                     <span className="text-2xl font-bold text-gray-900">{metrics.totalEntidades}</span>
-                    <span className="text-xs text-gray-500">Entidades</span>
+                    <span className="text-xs text-gray-500">Entidades del mes</span>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                     <Truck className="text-indigo-500 mb-2" size={24} />
                     <span className="text-2xl font-bold text-gray-900">{metrics.totalRecolecciones}</span>
-                    <span className="text-xs text-gray-500">Recolecciones</span>
+                    <span className="text-xs text-gray-500">Recolecciones del mes</span>
+                </div>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-bold text-gray-900">
+                        {metrics.promedioKgPorRecoleccion.toLocaleString('es-CO', { maximumFractionDigits: 1 })}
+                    </span>
+                    <span className="text-xs text-gray-500">Promedio Kg / recolección</span>
+                </div>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-bold text-gray-900">{formatMonthLabel(metrics.selectedMonth)}</span>
+                    <span className="text-xs text-gray-500">Mes activo</span>
                 </div>
             </div>
 

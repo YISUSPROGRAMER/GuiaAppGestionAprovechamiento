@@ -53,13 +53,16 @@ export interface DetalleMaterial {
 }
 
 export interface DashboardMetricas {
-    metaTrimestral: number;
+    metaMensual: number;
     totalRecolectado: number;
     percentCumplimiento: number;
     totalEntidades: number;
     totalRecolecciones: number;
     promedioKgPorRecoleccion: number;
     faltante: number;
+    excedente: number;
+    selectedMonth: string;
+    availableMonths: string[];
 }
 
 export interface SyncPayload {

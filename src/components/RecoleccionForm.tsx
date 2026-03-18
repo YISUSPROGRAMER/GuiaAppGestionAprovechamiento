@@ -10,6 +10,14 @@ import { toast } from 'react-hot-toast';
 
 const DEFAULT_MATERIALES = Object.values(TipoMaterial);
 
+const formatPesoInput = (value: number) => value.toString().replace('.', ',');
+
+const parsePesoInput = (value: string) => {
+    const normalized = value.trim().replace(',', '.');
+    if (!normalized) return NaN;
+    return Number(normalized);
+};
+
 export const RecoleccionForm: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -48,7 +56,7 @@ export const RecoleccionForm: React.FC = () => {
                         setDetalles(dets.map(d => ({
                             id: d.id,
                             material: d.material,
-                            peso: d.pesoKg.toString()
+                            peso: formatPesoInput(d.pesoKg)
                         })));
                     }
                 }
@@ -85,6 +93,16 @@ export const RecoleccionForm: React.FC = () => {
 
         if (detalles.length === 0) {
             toast.error("Agregue al menos un material");
+            return;
+        }
+
+        const pesosInvalidos = detalles.some(d => {
+            const peso = parsePesoInput(d.peso);
+            return Number.isNaN(peso) || peso <= 0;
+        });
+
+        if (pesosInvalidos) {
+            toast.error("Ingrese pesos válidos, por ejemplo 23,45");
             return;
         }
 
@@ -150,7 +168,7 @@ export const RecoleccionForm: React.FC = () => {
                         nombreEntidad: selectedEntidad.nombre,
                         fechaRecoleccion: fecha,
                         material: d.material,
-                        pesoKg: parseFloat(d.peso),
+                        pesoKg: parsePesoInput(d.peso),
                         sync: 1
                     });
                 } else {
@@ -163,7 +181,7 @@ export const RecoleccionForm: React.FC = () => {
                         nombreEntidad: selectedEntidad.nombre,
                         fechaRecoleccion: fecha,
                         material: d.material,
-                        pesoKg: parseFloat(d.peso),
+                        pesoKg: parsePesoInput(d.peso),
                         sync: 1
                     });
                 }
@@ -246,10 +264,9 @@ export const RecoleccionForm: React.FC = () => {
                                 </select>
                                 <div className="flex items-center space-x-2">
                                     <input
-                                        type="number"
-                                        placeholder="0.00"
-                                        step="0.01"
-                                        min="0.01"
+                                        type="text"
+                                        inputMode="decimal"
+                                        placeholder="23,45"
                                         required
                                         className="flex-1 p-2 border border-gray-200 rounded-lg text-sm"
                                         value={det.peso}
