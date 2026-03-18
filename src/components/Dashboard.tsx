@@ -2,7 +2,7 @@ import React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import { SyncService } from '../services/sync';
-import { RefreshCw, Truck, Archive, Settings } from 'lucide-react';
+import { RefreshCw, Download, Truck, Archive, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 
@@ -46,6 +46,10 @@ export const Dashboard: React.FC = () => {
         // The dashboard will auto-update via useLiveQuery observing DB changes and LocalStorage
     };
 
+    const handleDownload = async () => {
+        await SyncService.syncDown();
+    };
+
     if (!metrics) return <div className="p-4">Cargando métricas...</div>;
 
     const progress = Math.min(metrics.percentCumplimiento * 100, 100);
@@ -59,6 +63,15 @@ export const Dashboard: React.FC = () => {
                     <p className="text-sm text-gray-500">Panel de Control</p>
                 </div>
                 <div className="flex bg-white rounded-full shadow-sm p-1">
+                    <button
+                        onClick={handleDownload}
+                        disabled={loading}
+                        className={`p-2 rounded-full text-emerald-600 hover:bg-emerald-50 transition-colors ${loading ? "opacity-50" : ""}`}
+                        title="Descargar datos del servidor"
+                    >
+                        <Download size={24} />
+                    </button>
+                    <div className="w-px bg-gray-100 mx-1"></div>
                     <button
                         onClick={handleSync}
                         disabled={loading}
