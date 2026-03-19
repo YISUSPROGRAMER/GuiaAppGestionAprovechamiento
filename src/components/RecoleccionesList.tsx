@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Plus, Search, Calendar, ChevronLeft, ChevronRight, Truck, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
-import { useSharedSelectedMonth } from '../hooks/useSharedSelectedMonth';
+import { ALL_PERIODS_VALUE, useSharedSelectedMonth } from '../hooks/useSharedSelectedMonth';
 
 const getMonthKey = (dateValue: string) => {
     if (!dateValue) return '';
@@ -14,6 +14,8 @@ const getMonthKey = (dateValue: string) => {
 };
 
 const formatMonthLabel = (monthKey: string) => {
+    if (monthKey === ALL_PERIODS_VALUE) return 'Todos los meses';
+
     const [year, month] = monthKey.split('-').map(Number);
     if (!year || !month) return monthKey;
 
@@ -43,7 +45,9 @@ export const RecoleccionesList: React.FC = () => {
                 .filter(Boolean)
         )).sort();
 
-        const monthToUse = availableMonths.includes(selectedMonth)
+        const monthToUse = selectedMonth === ALL_PERIODS_VALUE
+            ? ALL_PERIODS_VALUE
+            : availableMonths.includes(selectedMonth)
             ? selectedMonth
             : availableMonths.includes(currentMonth)
                 ? currentMonth
@@ -65,13 +69,14 @@ export const RecoleccionesList: React.FC = () => {
     if (!data) return <div className="p-4">Cargando...</div>;
 
     const monthIndex = data.availableMonths.indexOf(data.selectedMonth);
-    const canGoPrevious = monthIndex > 0;
-    const canGoNext = monthIndex !== -1 && monthIndex < data.availableMonths.length - 1;
+    const isAllPeriods = data.selectedMonth === ALL_PERIODS_VALUE;
+    const canGoPrevious = !isAllPeriods && monthIndex > 0;
+    const canGoNext = !isAllPeriods && monthIndex !== -1 && monthIndex < data.availableMonths.length - 1;
 
     const filtered = data.recolecciones.filter(r =>
         r.nombreEntidad.toLowerCase().includes(search.toLowerCase()) &&
         r.deleted !== 1 &&
-        getMonthKey(r.fechaRecoleccion) === data.selectedMonth
+        (isAllPeriods || getMonthKey(r.fechaRecoleccion) === data.selectedMonth)
     );
 
     return (
@@ -119,6 +124,7 @@ export const RecoleccionesList: React.FC = () => {
                             onChange={e => setSelectedMonth(e.target.value)}
                             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
                         >
+                            <option value={ALL_PERIODS_VALUE}>Todos los meses</option>
                             {data.availableMonths.length > 0 ? (
                                 data.availableMonths.map(month => (
                                     <option key={month} value={month}>
@@ -151,7 +157,9 @@ export const RecoleccionesList: React.FC = () => {
                 </div>
 
                 <p className="text-sm text-gray-500">
-                    {data.availableMonths.length > 0
+                    {isAllPeriods
+                        ? "Mostrando todas las recolecciones registradas."
+                        : data.availableMonths.length > 0
                         ? `Mostrando recolecciones de ${formatMonthLabel(data.selectedMonth)}`
                         : "Aún no hay meses trabajados con recolecciones registradas."}
                 </p>

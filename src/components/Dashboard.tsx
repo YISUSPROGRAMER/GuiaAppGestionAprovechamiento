@@ -6,7 +6,7 @@ import { RefreshCw, Download, ChevronLeft, ChevronRight, Truck, Archive, Setting
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
-import { useSharedSelectedMonth } from '../hooks/useSharedSelectedMonth';
+import { ALL_PERIODS_VALUE, useSharedSelectedMonth } from '../hooks/useSharedSelectedMonth';
 
 const MONTHLY_GOAL_KG = 5000;
 
@@ -16,6 +16,8 @@ const getMonthKey = (dateValue: string) => {
 };
 
 const formatMonthLabel = (monthKey: string) => {
+    if (monthKey === ALL_PERIODS_VALUE) return 'Todos los meses';
+
     const [year, month] = monthKey.split('-').map(Number);
     if (!year || !month) return monthKey;
 
@@ -38,27 +40,31 @@ export const Dashboard: React.FC = () => {
                 .filter(Boolean)
         )).sort();
 
-        const monthToUse = availableMonths.includes(selectedMonth)
+        const monthToUse = selectedMonth === ALL_PERIODS_VALUE
+            ? ALL_PERIODS_VALUE
+            : availableMonths.includes(selectedMonth)
             ? selectedMonth
             : availableMonths.includes(currentMonth)
                 ? currentMonth
                 : availableMonths[0] || currentMonth;
 
-        const monthRecolecciones = activeRecolecciones.filter(
-            r => getMonthKey(r.fechaRecoleccion) === monthToUse
-        );
+        const monthRecolecciones = monthToUse === ALL_PERIODS_VALUE
+            ? activeRecolecciones
+            : activeRecolecciones.filter(r => getMonthKey(r.fechaRecoleccion) === monthToUse);
         const monthRecIds = new Set(monthRecolecciones.map(r => r.id));
         const recoleccionesCount = monthRecolecciones.length;
         const entidadesCount = new Set(monthRecolecciones.map(r => r.idEntidad)).size;
         const validDetalles = activeDetalles.filter(d => monthRecIds.has(d.idRecoleccion));
         const totalKg = validDetalles.reduce((acc, d) => acc + d.pesoKg, 0);
-        const faltante = Math.max(MONTHLY_GOAL_KG - totalKg, 0);
-        const excedente = Math.max(totalKg - MONTHLY_GOAL_KG, 0);
+        const goalMultiplier = monthToUse === ALL_PERIODS_VALUE ? Math.max(availableMonths.length, 1) : 1;
+        const totalGoalKg = MONTHLY_GOAL_KG * goalMultiplier;
+        const faltante = Math.max(totalGoalKg - totalKg, 0);
+        const excedente = Math.max(totalKg - totalGoalKg, 0);
 
         return {
-            metaMensual: MONTHLY_GOAL_KG,
+            metaMensual: totalGoalKg,
             totalRecolectado: totalKg,
-            percentCumplimiento: totalKg / MONTHLY_GOAL_KG,
+            percentCumplimiento: totalKg / totalGoalKg,
             totalEntidades: entidadesCount,
             totalRecolecciones: recoleccionesCount,
             promedioKgPorRecoleccion: recoleccionesCount > 0 ? totalKg / recoleccionesCount : 0,
@@ -109,8 +115,9 @@ export const Dashboard: React.FC = () => {
     const progress = Math.min(metrics.percentCumplimiento * 100, 100);
     const colorClass = progress < 50 ? 'bg-red-500' : progress < 85 ? 'bg-yellow-500' : 'bg-green-500';
     const monthIndex = metrics.availableMonths.indexOf(metrics.selectedMonth);
-    const canGoPrevious = monthIndex > 0;
-    const canGoNext = monthIndex !== -1 && monthIndex < metrics.availableMonths.length - 1;
+    const isAllPeriods = metrics.selectedMonth === ALL_PERIODS_VALUE;
+    const canGoPrevious = !isAllPeriods && monthIndex > 0;
+    const canGoNext = !isAllPeriods && monthIndex !== -1 && monthIndex < metrics.availableMonths.length - 1;
 
     return (
         <div className="p-4 space-y-6">
@@ -169,6 +176,7 @@ export const Dashboard: React.FC = () => {
                             onChange={e => setSelectedMonth(e.target.value)}
                             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
                         >
+                            <option value={ALL_PERIODS_VALUE}>Todos los meses</option>
                             {metrics.availableMonths.length > 0 ? (
                                 metrics.availableMonths.map(month => (
                                     <option key={month} value={month}>
@@ -201,7 +209,9 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 <p className="text-sm text-gray-500">
-                    {metrics.availableMonths.length > 0
+                    {isAllPeriods
+                        ? "Mostrando un resumen general acumulado de todos los meses trabajados."
+                        : metrics.availableMonths.length > 0
                         ? `Mostrando información de ${formatMonthLabel(metrics.selectedMonth)}`
                         : "Aún no hay meses trabajados registrados. Puedes empezar con el mes actual."}
                 </p>
@@ -210,7 +220,9 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex justify-between items-end mb-4">
                     <div>
-                        <p className="text-sm text-gray-500 font-medium mb-1">Total Recolectado del Mes</p>
+                        <p className="text-sm text-gray-500 font-medium mb-1">
+                            {isAllPeriods ? 'Total Recolectado General' : 'Total Recolectado del Mes'}
+                        </p>
                         <h2 className="text-4xl font-extrabold text-gray-900">
                             {metrics.totalRecolectado.toLocaleString('es-CO', { maximumFractionDigits: 1 })} <span className="text-lg text-gray-400 font-normal">Kg</span>
                         </h2>
@@ -232,7 +244,7 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-xs text-gray-400">
                     <span>0 Kg</span>
-                    <span>Meta mensual: {metrics.metaMensual.toLocaleString('es-CO')} Kg</span>
+                    <span>{isAllPeriods ? 'Meta acumulada' : 'Meta mensual'}: {metrics.metaMensual.toLocaleString('es-CO')} Kg</span>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-gray-50 px-4 py-3">
@@ -254,12 +266,12 @@ export const Dashboard: React.FC = () => {
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                     <Archive className="text-purple-500 mb-2" size={24} />
                     <span className="text-2xl font-bold text-gray-900">{metrics.totalEntidades}</span>
-                    <span className="text-xs text-gray-500">Entidades del mes</span>
+                    <span className="text-xs text-gray-500">{isAllPeriods ? 'Entidades acumuladas' : 'Entidades del mes'}</span>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                     <Truck className="text-indigo-500 mb-2" size={24} />
                     <span className="text-2xl font-bold text-gray-900">{metrics.totalRecolecciones}</span>
-                    <span className="text-xs text-gray-500">Recolecciones del mes</span>
+                    <span className="text-xs text-gray-500">{isAllPeriods ? 'Recolecciones acumuladas' : 'Recolecciones del mes'}</span>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                     <span className="text-2xl font-bold text-gray-900">
@@ -269,7 +281,7 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
                     <span className="text-2xl font-bold text-gray-900">{formatMonthLabel(metrics.selectedMonth)}</span>
-                    <span className="text-xs text-gray-500">Mes activo</span>
+                    <span className="text-xs text-gray-500">{isAllPeriods ? 'Resumen activo' : 'Mes activo'}</span>
                 </div>
             </div>
 

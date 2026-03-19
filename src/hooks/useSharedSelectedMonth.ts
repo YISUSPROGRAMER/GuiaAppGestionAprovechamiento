@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+export const ALL_PERIODS_VALUE = 'all';
+
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
 let sharedSelectedMonth = getCurrentMonth();
