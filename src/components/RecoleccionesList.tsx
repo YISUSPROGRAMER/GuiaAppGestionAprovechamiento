@@ -4,19 +4,71 @@ import { db } from '../db/db';
 import { SyncService } from '../services/sync';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Plus, Search, Calendar, Truck, Trash2 } from 'lucide-react';
+import { Plus, Search, Calendar, ChevronLeft, ChevronRight, Truck, Trash2 } from 'lucide-react';
+import clsx from 'clsx';
+
+const getMonthKey = (dateValue: string) => {
+    if (!dateValue) return '';
+    return dateValue.slice(0, 7);
+};
+
+const formatMonthLabel = (monthKey: string) => {
+    const [year, month] = monthKey.split('-').map(Number);
+    if (!year || !month) return monthKey;
+
+    return new Intl.DateTimeFormat('es-CO', {
+        month: 'long',
+        year: 'numeric'
+    }).format(new Date(year, month - 1, 1));
+};
+
+const formatLocalDate = (dateValue: string) => {
+    const [year, month, day] = dateValue.split('-').map(Number);
+    if (!year || !month || !day) return dateValue;
+    return new Intl.DateTimeFormat('es-CO').format(new Date(year, month - 1, day));
+};
 
 export const RecoleccionesList: React.FC = () => {
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
-    const recolecciones = useLiveQuery(
-        () => db.recolecciones.orderBy('fechaRecoleccion').reverse().toArray()
-    );
+    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    const data = useLiveQuery(async () => {
+        const recolecciones = await db.recolecciones.orderBy('fechaRecoleccion').reverse().toArray();
+        const detalles = await db.detalles.filter(d => d.deleted !== 1).toArray();
+        const availableMonths = Array.from(new Set(
+            recolecciones
+                .filter(r => r.deleted !== 1)
+                .map(r => getMonthKey(r.fechaRecoleccion))
+                .filter(Boolean)
+        )).sort().reverse();
 
-    if (!recolecciones) return <div className="p-4">Cargando...</div>;
+        const monthToUse = availableMonths.includes(selectedMonth)
+            ? selectedMonth
+            : availableMonths[0] || selectedMonth;
 
-    const filtered = recolecciones.filter(r =>
-        r.nombreEntidad.toLowerCase().includes(search.toLowerCase()) && r.deleted !== 1
+        const totalsByRecoleccion = detalles.reduce<Record<string, number>>((acc, det) => {
+            acc[det.idRecoleccion] = (acc[det.idRecoleccion] || 0) + det.pesoKg;
+            return acc;
+        }, {});
+
+        return {
+            recolecciones,
+            availableMonths,
+            selectedMonth: monthToUse,
+            totalsByRecoleccion
+        };
+    }, [selectedMonth]);
+
+    if (!data) return <div className="p-4">Cargando...</div>;
+
+    const monthIndex = data.availableMonths.indexOf(data.selectedMonth);
+    const canGoNewer = monthIndex > 0;
+    const canGoOlder = monthIndex !== -1 && monthIndex < data.availableMonths.length - 1;
+
+    const filtered = data.recolecciones.filter(r =>
+        r.nombreEntidad.toLowerCase().includes(search.toLowerCase()) &&
+        r.deleted !== 1 &&
+        getMonthKey(r.fechaRecoleccion) === data.selectedMonth
     );
 
     return (
@@ -39,6 +91,67 @@ export const RecoleccionesList: React.FC = () => {
                 />
             </div>
 
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4 mb-6">
+                <div className="flex items-center justify-between gap-3">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!canGoNewer) return;
+                            setSelectedMonth(data.availableMonths[monthIndex - 1]);
+                        }}
+                        disabled={!canGoNewer}
+                        className={clsx(
+                            "p-2 rounded-full border transition-colors",
+                            canGoNewer ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                        )}
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+
+                    <div className="flex-1">
+                        <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Periodo</p>
+                        <select
+                            value={data.selectedMonth}
+                            onChange={e => setSelectedMonth(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {data.availableMonths.length > 0 ? (
+                                data.availableMonths.map(month => (
+                                    <option key={month} value={month}>
+                                        {formatMonthLabel(month)}
+                                    </option>
+                                ))
+                            ) : (
+                                <option value={data.selectedMonth}>
+                                    {formatMonthLabel(data.selectedMonth)}
+                                </option>
+                            )}
+                        </select>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!canGoOlder) return;
+                            setSelectedMonth(data.availableMonths[monthIndex + 1]);
+                        }}
+                        disabled={!canGoOlder}
+                        className={clsx(
+                            "p-2 rounded-full border transition-colors",
+                            canGoOlder ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                        )}
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                </div>
+
+                <p className="text-sm text-gray-500">
+                    {data.availableMonths.length > 0
+                        ? `Mostrando recolecciones de ${formatMonthLabel(data.selectedMonth)}`
+                        : "Aún no hay meses trabajados con recolecciones registradas."}
+                </p>
+            </div>
+
             <div className="space-y-4">
                 {filtered.map(rec => (
                     <div
@@ -59,7 +172,10 @@ export const RecoleccionesList: React.FC = () => {
                                 </div>
                                 <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
                                     <Calendar size={14} />
-                                    <span>{new Date(rec.fechaRecoleccion).toLocaleDateString()}</span>
+                                    <span>{formatLocalDate(rec.fechaRecoleccion)}</span>
+                                </div>
+                                <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                    Total: {(data.totalsByRecoleccion[rec.id] || 0).toLocaleString('es-CO', { maximumFractionDigits: 2 })} Kg
                                 </div>
                                 {rec.sync === 1 && (
                                     <div className="mt-2">
@@ -110,7 +226,7 @@ export const RecoleccionesList: React.FC = () => {
                 ))}
                 {filtered.length === 0 && (
                     <div className="text-center py-10 text-gray-400">
-                        No hay recolecciones registradas.
+                        No hay recolecciones registradas para ese filtro.
                     </div>
                 )}
             </div>
