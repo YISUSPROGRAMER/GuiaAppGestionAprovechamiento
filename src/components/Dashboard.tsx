@@ -39,6 +39,21 @@ export const Dashboard: React.FC = () => {
                 .map(r => getMonthKey(r.fechaRecoleccion))
                 .filter(Boolean)
         )).sort();
+        const monthlyBreakdown = availableMonths.map(month => {
+            const monthRecolecciones = activeRecolecciones.filter(
+                r => getMonthKey(r.fechaRecoleccion) === month
+            );
+            const monthRecIds = new Set(monthRecolecciones.map(r => r.id));
+            const monthTotalKg = activeDetalles
+                .filter(d => monthRecIds.has(d.idRecoleccion))
+                .reduce((acc, d) => acc + d.pesoKg, 0);
+
+            return {
+                month,
+                totalKg: monthTotalKg,
+                totalRecolecciones: monthRecolecciones.length
+            };
+        });
 
         const monthToUse = selectedMonth === ALL_PERIODS_VALUE
             ? ALL_PERIODS_VALUE
@@ -71,7 +86,8 @@ export const Dashboard: React.FC = () => {
             faltante,
             excedente,
             selectedMonth: monthToUse,
-            availableMonths
+            availableMonths,
+            monthlyBreakdown
         };
     }, [selectedMonth, currentMonth]);
 
@@ -284,6 +300,34 @@ export const Dashboard: React.FC = () => {
                     <span className="text-xs text-gray-500">{isAllPeriods ? 'Resumen activo' : 'Mes activo'}</span>
                 </div>
             </div>
+
+            {isAllPeriods && metrics.monthlyBreakdown.length > 0 && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                    <div>
+                        <h2 className="text-base font-bold text-gray-900">Desglose por mes</h2>
+                        <p className="text-sm text-gray-500">Resumen rápido del acumulado histórico.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        {metrics.monthlyBreakdown.map(item => (
+                            <div
+                                key={item.month}
+                                className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"
+                            >
+                                <div>
+                                    <p className="font-medium text-gray-900">{formatMonthLabel(item.month)}</p>
+                                    <p className="text-xs text-gray-500">{item.totalRecolecciones} recolecciones</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-bold text-gray-900">
+                                        {item.totalKg.toLocaleString('es-CO', { maximumFractionDigits: 1 })} Kg
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
         </div>
     );

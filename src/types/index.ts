@@ -63,6 +63,11 @@ export interface DashboardMetricas {
     excedente: number;
     selectedMonth: string;
     availableMonths: string[];
+    monthlyBreakdown: Array<{
+        month: string;
+        totalKg: number;
+        totalRecolecciones: number;
+    }>;
 }
 
 export interface SyncPayload {
