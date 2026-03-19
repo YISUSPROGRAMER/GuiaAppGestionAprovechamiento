@@ -36,7 +36,7 @@ export const Dashboard: React.FC = () => {
             activeRecolecciones
                 .map(r => getMonthKey(r.fechaRecoleccion))
                 .filter(Boolean)
-        )).sort().reverse();
+        )).sort();
 
         const monthToUse = availableMonths.includes(selectedMonth)
             ? selectedMonth
@@ -109,8 +109,8 @@ export const Dashboard: React.FC = () => {
     const progress = Math.min(metrics.percentCumplimiento * 100, 100);
     const colorClass = progress < 50 ? 'bg-red-500' : progress < 85 ? 'bg-yellow-500' : 'bg-green-500';
     const monthIndex = metrics.availableMonths.indexOf(metrics.selectedMonth);
-    const canGoNewer = monthIndex > 0;
-    const canGoOlder = monthIndex !== -1 && monthIndex < metrics.availableMonths.length - 1;
+    const canGoPrevious = monthIndex > 0;
+    const canGoNext = monthIndex !== -1 && monthIndex < metrics.availableMonths.length - 1;
 
     return (
         <div className="p-4 space-y-6">
@@ -149,15 +149,15 @@ export const Dashboard: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            if (!canGoNewer) return;
+                            if (!canGoPrevious) return;
                             setSelectedMonth(metrics.availableMonths[monthIndex - 1]);
                         }}
-                        disabled={!canGoNewer}
+                        disabled={!canGoPrevious}
                         className={clsx(
                             "p-2 rounded-full border transition-colors",
-                            canGoNewer ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                            canGoPrevious ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
                         )}
-                        title="Mes más reciente"
+                        title="Mes anterior"
                     >
                         <ChevronLeft size={18} />
                     </button>
@@ -186,15 +186,15 @@ export const Dashboard: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            if (!canGoOlder) return;
+                            if (!canGoNext) return;
                             setSelectedMonth(metrics.availableMonths[monthIndex + 1]);
                         }}
-                        disabled={!canGoOlder}
+                        disabled={!canGoNext}
                         className={clsx(
                             "p-2 rounded-full border transition-colors",
-                            canGoOlder ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                            canGoNext ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
                         )}
-                        title="Mes anterior"
+                        title="Mes siguiente"
                     >
                         <ChevronRight size={18} />
                     </button>

@@ -41,7 +41,7 @@ export const RecoleccionesList: React.FC = () => {
                 .filter(r => r.deleted !== 1)
                 .map(r => getMonthKey(r.fechaRecoleccion))
                 .filter(Boolean)
-        )).sort().reverse();
+        )).sort();
 
         const monthToUse = availableMonths.includes(selectedMonth)
             ? selectedMonth
@@ -65,8 +65,8 @@ export const RecoleccionesList: React.FC = () => {
     if (!data) return <div className="p-4">Cargando...</div>;
 
     const monthIndex = data.availableMonths.indexOf(data.selectedMonth);
-    const canGoNewer = monthIndex > 0;
-    const canGoOlder = monthIndex !== -1 && monthIndex < data.availableMonths.length - 1;
+    const canGoPrevious = monthIndex > 0;
+    const canGoNext = monthIndex !== -1 && monthIndex < data.availableMonths.length - 1;
 
     const filtered = data.recolecciones.filter(r =>
         r.nombreEntidad.toLowerCase().includes(search.toLowerCase()) &&
@@ -99,14 +99,15 @@ export const RecoleccionesList: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            if (!canGoNewer) return;
+                            if (!canGoPrevious) return;
                             setSelectedMonth(data.availableMonths[monthIndex - 1]);
                         }}
-                        disabled={!canGoNewer}
+                        disabled={!canGoPrevious}
                         className={clsx(
                             "p-2 rounded-full border transition-colors",
-                            canGoNewer ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                            canGoPrevious ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
                         )}
+                        title="Mes anterior"
                     >
                         <ChevronLeft size={18} />
                     </button>
@@ -135,14 +136,15 @@ export const RecoleccionesList: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            if (!canGoOlder) return;
+                            if (!canGoNext) return;
                             setSelectedMonth(data.availableMonths[monthIndex + 1]);
                         }}
-                        disabled={!canGoOlder}
+                        disabled={!canGoNext}
                         className={clsx(
                             "p-2 rounded-full border transition-colors",
-                            canGoOlder ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
+                            canGoNext ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "border-gray-100 text-gray-300"
                         )}
+                        title="Mes siguiente"
                     >
                         <ChevronRight size={18} />
                     </button>
