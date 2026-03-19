@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Plus, Search, Calendar, ChevronLeft, ChevronRight, Truck, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
+import { useSharedSelectedMonth } from '../hooks/useSharedSelectedMonth';
 
 const getMonthKey = (dateValue: string) => {
     if (!dateValue) return '';
@@ -31,7 +32,7 @@ const formatLocalDate = (dateValue: string) => {
 export const RecoleccionesList: React.FC = () => {
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
-    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    const { selectedMonth, setSelectedMonth, currentMonth } = useSharedSelectedMonth();
     const data = useLiveQuery(async () => {
         const recolecciones = await db.recolecciones.orderBy('fechaRecoleccion').reverse().toArray();
         const detalles = await db.detalles.filter(d => d.deleted !== 1).toArray();
@@ -44,7 +45,9 @@ export const RecoleccionesList: React.FC = () => {
 
         const monthToUse = availableMonths.includes(selectedMonth)
             ? selectedMonth
-            : availableMonths[0] || selectedMonth;
+            : availableMonths.includes(currentMonth)
+                ? currentMonth
+                : availableMonths[0] || currentMonth;
 
         const totalsByRecoleccion = detalles.reduce<Record<string, number>>((acc, det) => {
             acc[det.idRecoleccion] = (acc[det.idRecoleccion] || 0) + det.pesoKg;
@@ -57,7 +60,7 @@ export const RecoleccionesList: React.FC = () => {
             selectedMonth: monthToUse,
             totalsByRecoleccion
         };
-    }, [selectedMonth]);
+    }, [selectedMonth, currentMonth]);
 
     if (!data) return <div className="p-4">Cargando...</div>;
 

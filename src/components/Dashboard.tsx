@@ -6,6 +6,7 @@ import { RefreshCw, Download, ChevronLeft, ChevronRight, Truck, Archive, Setting
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { toast } from 'react-hot-toast';
+import { useSharedSelectedMonth } from '../hooks/useSharedSelectedMonth';
 
 const MONTHLY_GOAL_KG = 5000;
 
@@ -26,7 +27,7 @@ const formatMonthLabel = (monthKey: string) => {
 
 export const Dashboard: React.FC = () => {
     const [activeAction, setActiveAction] = useState<'sync' | 'download' | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+    const { selectedMonth, setSelectedMonth, currentMonth } = useSharedSelectedMonth();
 
     const metrics = useLiveQuery(async () => {
         const activeRecolecciones = await db.recolecciones.filter(r => r.deleted !== 1).toArray();
@@ -39,7 +40,9 @@ export const Dashboard: React.FC = () => {
 
         const monthToUse = availableMonths.includes(selectedMonth)
             ? selectedMonth
-            : availableMonths[0] || selectedMonth;
+            : availableMonths.includes(currentMonth)
+                ? currentMonth
+                : availableMonths[0] || currentMonth;
 
         const monthRecolecciones = activeRecolecciones.filter(
             r => getMonthKey(r.fechaRecoleccion) === monthToUse
@@ -64,7 +67,7 @@ export const Dashboard: React.FC = () => {
             selectedMonth: monthToUse,
             availableMonths
         };
-    }, [selectedMonth]);
+    }, [selectedMonth, currentMonth]);
 
     // No legacy useEffect needed
     const loading = !metrics;
